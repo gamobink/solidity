@@ -7459,6 +7459,33 @@ BOOST_AUTO_TEST_CASE(addmod_mulmod)
 	ABI_CHECK(callContractFunction("test()"), encodeArgs(u256(0)));
 }
 
+BOOST_AUTO_TEST_CASE(addmod_mulmod_zero)
+{
+	char const* sourceCode = R"(
+		contract C {
+			function f() pure returns (uint) {
+				addmod(1, 2, 0);
+				return 2;
+			}
+			function g() pure returns (uint) {
+				mulmod(1, 2, 0);
+				return 2;
+			}
+			function h() pure returns (uint) {
+				mulmod(0, 1, 2);
+				mulmod(1, 0, 2);
+				addmod(0, 1, 2);
+				addmod(1, 0, 2);
+				return 2;
+			}
+		}
+	)";
+	compileAndRun(sourceCode);
+	ABI_CHECK(callContractFunction("f()"), encodeArgs());
+	ABI_CHECK(callContractFunction("g()"), encodeArgs());
+	ABI_CHECK(callContractFunction("h()"), encodeArgs(2));
+}
+
 BOOST_AUTO_TEST_CASE(divisiod_by_zero)
 {
 	char const* sourceCode = R"(
@@ -10219,17 +10246,21 @@ BOOST_AUTO_TEST_CASE(function_types_sig)
 {
 	char const* sourceCode = R"(
 		contract C {
-			function f() returns (bytes4) {
+			uint public x;
+			function f() pure returns (bytes4) {
 				return this.f.selector;
 			}
 			function g() returns (bytes4) {
-				function () external returns (bytes4) fun = this.f;
+				function () pure external returns (bytes4) fun = this.f;
 				return fun.selector;
 			}
 			function h() returns (bytes4) {
-				function () external returns (bytes4) fun = this.f;
+				function () pure external returns (bytes4) fun = this.f;
 				var funvar = fun;
 				return funvar.selector;
+			}
+			function i() pure returns (bytes4) {
+				return this.x.selector;
 			}
 		}
 	)";
@@ -10237,6 +10268,7 @@ BOOST_AUTO_TEST_CASE(function_types_sig)
 	ABI_CHECK(callContractFunction("f()"), encodeArgs(asString(FixedHash<4>(dev::keccak256("f()")).asBytes())));
 	ABI_CHECK(callContractFunction("g()"), encodeArgs(asString(FixedHash<4>(dev::keccak256("f()")).asBytes())));
 	ABI_CHECK(callContractFunction("h()"), encodeArgs(asString(FixedHash<4>(dev::keccak256("f()")).asBytes())));
+	ABI_CHECK(callContractFunction("i()"), encodeArgs(asString(FixedHash<4>(dev::keccak256("x()")).asBytes())));
 }
 
 BOOST_AUTO_TEST_CASE(constant_string)

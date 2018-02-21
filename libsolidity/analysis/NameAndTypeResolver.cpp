@@ -25,6 +25,7 @@
 #include <libsolidity/ast/AST.h>
 #include <libsolidity/analysis/TypeChecker.h>
 #include <libsolidity/interface/ErrorReporter.h>
+#include <libdevcore/StringUtils.h>
 
 #include <boost/algorithm/string.hpp>
 
@@ -425,6 +426,11 @@ vector<_T const*> NameAndTypeResolver::cThreeMerge(list<list<_T const*>>& _toMer
 	return result;
 }
 
+string NameAndTypeResolver::similarNameSuggestions(ASTString const& _name) const
+{
+	return quotedAlternativesList(m_currentScope->similarNames(_name));
+}
+
 DeclarationRegistrationHelper::DeclarationRegistrationHelper(
 	map<ASTNode const*, shared_ptr<DeclarationContainer>>& _scopes,
 	ASTNode& _astRoot,
@@ -451,9 +457,10 @@ bool DeclarationRegistrationHelper::registerDeclaration(
 	if (!_errorLocation)
 		_errorLocation = &_declaration.location();
 
+	string name = _name ? *_name : _declaration.name();
 	Declaration const* shadowedDeclaration = nullptr;
-	if (_warnOnShadow && !_declaration.name().empty() && _container.enclosingContainer())
-		for (auto const* decl: _container.enclosingContainer()->resolveName(_declaration.name(), true))
+	if (_warnOnShadow && !name.empty() && _container.enclosingContainer())
+		for (auto const* decl: _container.enclosingContainer()->resolveName(name, true))
 			shadowedDeclaration = decl;
 
 	if (!_container.registerDeclaration(_declaration, _name, !_declaration.isVisibleInContract()))

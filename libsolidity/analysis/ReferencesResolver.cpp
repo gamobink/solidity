@@ -47,7 +47,13 @@ bool ReferencesResolver::visit(Identifier const& _identifier)
 {
 	auto declarations = m_resolver.nameFromCurrentScope(_identifier.name());
 	if (declarations.empty())
-		declarationError(_identifier.location(), "Undeclared identifier.");
+	{
+		string suggestions = m_resolver.similarNameSuggestions(_identifier.name());
+		string errorMessage =
+			"Undeclared identifier." +
+			(suggestions.empty()? "": " Did you mean " + std::move(suggestions) + "?");
+		declarationError(_identifier.location(), errorMessage);
+	}
 	else if (declarations.size() == 1)
 		_identifier.annotation().referencedDeclaration = declarations.front();
 	else
@@ -153,6 +159,11 @@ void ReferencesResolver::endVisit(Mapping const& _typeName)
 void ReferencesResolver::endVisit(ArrayTypeName const& _typeName)
 {
 	TypePointer baseType = _typeName.baseType().annotation().type;
+	if (!baseType)
+	{
+		solAssert(!m_errorReporter.errors().empty(), "");
+		return;
+	}
 	if (baseType->storageBytes() == 0)
 		fatalTypeError(_typeName.baseType().location(), "Illegal base type of storage size zero for array.");
 	if (Expression const* length = _typeName.length())
